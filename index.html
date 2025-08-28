@@ -1,0 +1,1394 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Snake Royale - A dynamic multiplayer snake game with user authentication and global leaderboards" />
+  <title>Snake Royale — Multiplayer Edition</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Snake Royale">
+  <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMwZjE3MjQiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgZmlsbD0iIzA2YjZkNCIvPgo8L3N2Zz4=">
+  <style>
+    :root{
+      --bg:#0f1724; --panel:#0b1220; --accent:#06b6d4; --muted:#9ca3af;
+      --error:#ff5c5c; --success:#10b981;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,#071325 0%, var(--bg) 100%);
+      color:#e6eef6; padding: 10px;
+    }
+
+    .wrap, .auth-wrap {
+      display:grid; gap:14px; align-items:start;
+      width:100%; max-width:1400px; padding:20px; border-radius:12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      display: none; width: 20px; height: 20px; margin: 0 auto;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top: 2px solid var(--accent);
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    header{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;}
+    h1{font-size:1.3rem; margin:0}
+    .meta{color:var(--muted); font-size:0.9rem}
+
+    .game{
+      display:grid; grid-template-columns: 1fr 280px; gap:20px; 
+      align-items:flex-start; justify-content:center; width: 100%;
+    }
+
+    .canvas-container {
+      display: flex; justify-content: center; align-items: center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border-radius: 12px; padding: 15px; min-height: 500px;
+    }
+
+    canvas{
+      background:linear-gradient(180deg,#071a2b,#04202b); border-radius:8px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.6), 0 4px 20px rgba(0,0,0,0.3);
+      touch-action: none; max-width:100%; height:auto;
+      border: 2px solid rgba(6, 182, 212, 0.1);
+    }
+
+    .side{
+      min-width:260px; padding:15px; display:flex; flex-direction:column; gap:12px;
+      background:rgba(255,255,255,0.03); border-radius:12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .btn{
+      background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--accent);
+      padding:10px 12px; border-radius:8px; cursor:pointer; font-weight:600; 
+      transition: all 0.2s ease; position: relative; overflow: hidden;
+    }
+    .btn:hover{background: rgba(6, 182, 212, 0.1); transform: translateY(-1px);}
+    .btn:active{transform: translateY(0);}
+    .btn:disabled{opacity: 0.5; cursor: not-allowed; transform: none;}
+
+    .small{font-size:0.9rem; color:var(--muted)}
+    .controls{display:flex; gap:8px; flex-wrap:wrap}
+    footer{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top: 10px;}
+    .hint{font-size:0.85rem; color:var(--muted); line-height: 1.4;}
+
+    /* Auth Form Styles */
+    .auth-wrap { width: clamp(320px, 80vw, 450px); margin: 0 auto; }
+    .auth-form { display: flex; flex-direction: column; gap: 14px; }
+    .auth-form h2 { text-align: center; margin: 0 0 15px; color: var(--accent); font-size: 1.5rem; }
+    .auth-form input {
+        background: #0b1220; border: 1px solid rgba(255,255,255,0.08);
+        padding: 14px; border-radius: 6px; color: #e6eef6; font-size: 1rem;
+        transition: border-color 0.2s ease;
+    }
+    .auth-form input:focus {
+        outline: none; border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.1);
+    }
+    .auth-form input.error { border-color: var(--error); }
+    .auth-form input.success { border-color: var(--success); }
+
+    .auth-form .form-footer {
+        font-size: 0.9rem; text-align: center; margin-top: 10px;
+    }
+    .auth-form .form-footer a { 
+        color: var(--accent); cursor: pointer; text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    .auth-form .form-footer a:hover { color: #38bdf8; }
+
+    .auth-form .error { 
+        color: var(--error); font-size: 0.85rem; text-align: center; 
+        min-height: 1.2em; margin: -4px 0;
+    }
+    .auth-form .success { 
+        color: var(--success); font-size: 0.85rem; text-align: center; 
+        min-height: 1.2em; margin: -4px 0;
+    }
+
+    /* Password Strength Indicator */
+    .password-strength {
+        height: 3px; border-radius: 2px; background: rgba(255,255,255,0.1);
+        margin-top: -8px; overflow: hidden; transition: all 0.3s ease;
+    }
+    .password-strength .bar {
+        height: 100%; transition: all 0.3s ease; width: 0%;
+    }
+    .strength-weak .bar { width: 33%; background: var(--error); }
+    .strength-medium .bar { width: 66%; background: #f59e0b; }
+    .strength-strong .bar { width: 100%; background: var(--success); }
+
+    /* Enhanced Leaderboard Styles */
+    .leaderboard-section {
+      background: rgba(255,255,255,0.02); border-radius: 8px; padding: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .leaderboard-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .leaderboard-tabs {
+      display: flex; gap: 5px; margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      background: transparent; border: 1px solid rgba(255,255,255,0.1);
+      color: var(--muted); padding: 5px 10px; border-radius: 4px;
+      font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: rgba(6, 182, 212, 0.2); border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #leaderboard { padding: 0; margin: 0; list-style: none; max-height: 300px; overflow-y: auto; }
+    #leaderboard li {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 6px; border-radius: 6px; font-size: 0.85rem;
+        transition: background 0.2s ease; margin-bottom: 2px;
+    }
+    #leaderboard li:nth-child(odd) { background: rgba(255,255,255,0.02); }
+    #leaderboard li:hover { background: rgba(255,255,255,0.05); }
+    #leaderboard .rank { 
+      color: var(--muted); min-width: 25px; font-weight: 600; 
+      font-size: 0.8rem;
+    }
+    #leaderboard .rank.top3 { color: #fbbf24; }
+    #leaderboard .name { 
+        font-weight: 500; color: #e6eef6; flex: 1; 
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        margin: 0 8px;
+    }
+    #leaderboard .score { 
+      font-weight: 600; color: var(--accent); min-width: 40px; 
+      text-align: right; font-size: 0.9rem;
+    }
+    #leaderboard li.current-user { 
+      background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3);
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.1);
+    }
+
+    /* Connection Status */
+    .connection-status {
+      display: flex; align-items: center; gap: 5px; font-size: 0.8rem;
+      padding: 5px 8px; border-radius: 4px; margin-bottom: 10px;
+    }
+    .connection-status.online { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+    .connection-status.offline { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Game Stats */
+    .game-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.02); padding: 10px; border-radius: 6px;
+      text-align: center; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat-value {
+      font-size: 1.2rem; font-weight: bold; color: var(--accent);
+      display: block;
+    }
+    .stat-label {
+      font-size: 0.8rem; color: var(--muted); margin-top: 2px;
+    }
+
+    /* Accessibility */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; 
+               overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .game { grid-template-columns: 1fr 260px; gap: 15px; }
+    }
+
+    @media (max-width: 968px) {
+      .game { grid-template-columns: 1fr; }
+      .side { width: 100%; min-width: auto; }
+      .canvas-container { min-height: 400px; }
+    }
+
+    @media (max-width: 768px) {
+      .auth-wrap { width: clamp(280px, 95vw, 400px); padding: 18px; }
+      .wrap { padding: 15px; }
+      h1 { font-size: 1.1rem; }
+      .game-stats { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; }
+      .btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="authContainer" role="main" aria-label="Authentication">
+    <div class="auth-wrap">
+      <form id="loginForm" class="auth-form" aria-labelledby="loginTitle">
+        <h2 id="loginTitle">🐍 Snake Royale Login</h2>
+        <div class="spinner" id="loginSpinner"></div>
+        <div id="loginError" class="error" role="alert" aria-live="polite"></div>
+        <div id="loginSuccess" class="success" role="alert" aria-live="polite"></div>
+
+        <label for="loginEmail" class="sr-only">Email Address</label>
+        <input type="email" id="loginEmail" placeholder="Email Address" required 
+               autocomplete="email" aria-describedby="loginError" />
+
+        <label for="loginPassword" class="sr-only">Password</label>
+        <input type="password" id="loginPassword" placeholder="Password" required 
+               autocomplete="current-password" aria-describedby="loginError" />
+
+        <button type="submit" class="btn" id="loginSubmit">
+          <span>🚀 Start Playing</span>
+        </button>
+
+        <div class="form-footer">
+          New player? <a id="showSignup" role="button" tabindex="0">Create Account</a>
+        </div>
+      </form>
+
+      <form id="signupForm" class="auth-form" style="display:none;" aria-labelledby="signupTitle">
+        <h2 id="signupTitle">🎮 Join Snake Royale</h2>
+        <div class="spinner" id="signupSpinner"></div>
+        <div id="signupError" class="error" role="alert" aria-live="polite"></div>
+        <div id="signupSuccess" class="success" role="alert" aria-live="polite"></div>
+
+        <label for="signupName" class="sr-only">Player Name</label>
+        <input type="text" id="signupName" placeholder="Player Name" required 
+               autocomplete="name" maxlength="20" />
+
+        <label for="signupEmail" class="sr-only">Email Address</label>
+        <input type="email" id="signupEmail" placeholder="Email Address" required 
+               autocomplete="email" />
+
+        <label for="signupPassword" class="sr-only">Password</label>
+        <input type="password" id="signupPassword" placeholder="Password (min 8 characters)" 
+               required autocomplete="new-password" minlength="8" />
+        <div class="password-strength" id="passwordStrength">
+          <div class="bar"></div>
+        </div>
+
+        <label for="signupConfirm" class="sr-only">Confirm Password</label>
+        <input type="password" id="signupConfirm" placeholder="Confirm Password" 
+               required autocomplete="new-password" />
+
+        <button type="submit" class="btn" id="signupSubmit">
+          <span>🎯 Create Account & Play</span>
+        </button>
+
+        <div class="form-footer">
+          Already have an account? <a id="showLogin" role="button" tabindex="0">Login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="gameContainer" class="wrap" style="display:none;" role="main" aria-label="Snake Game">
+    <header>
+      <div>
+        <h1>🐍 Snake Royale - Multiplayer</h1>
+        <div class="meta">Welcome back, <span id="playerName"></span>! Ready to dominate? 🏆</div>
+      </div>
+       <div class="meta">
+         <button id="logoutBtn" class="btn" style="padding: 6px 10px; font-size: 0.85rem;" 
+                 aria-label="Logout from game">⚡ Logout</button>
+       </div>
+    </header>
+
+    <div class="game">
+      <div class="canvas-container">
+        <canvas id="board" role="img" aria-label="Snake game board" tabindex="0"></canvas>
+      </div>
+
+      <div class="side" role="complementary" aria-label="Game information and controls">
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="connection-status offline">
+          <div class="status-dot"></div>
+          <span id="connectionText">Local Mode</span>
+        </div>
+
+        <!-- Game Stats -->
+        <div class="game-stats">
+          <div class="stat-card">
+            <span id="score" class="stat-value">0</span>
+            <div class="stat-label">Current Score</div>
+          </div>
+          <div class="stat-card">
+            <span id="best" class="stat-value">0</span>
+            <div class="stat-label">Personal Best</div>
+          </div>
+        </div>
+
+         <div class="controls" role="group" aria-label="Game controls">
+          <button id="pauseBtn" class="btn" aria-label="Pause or resume game">⏸️ Pause</button>
+          <button id="resetBtn" class="btn" aria-label="Reset game">🔄 Reset</button>
+          <button id="fullscreenBtn" class="btn" aria-label="Toggle fullscreen">📺 Expand</button>
+        </div>
+
+        <div style="height:1px;background:rgba(255,255,255,0.03);margin:8px 0;" aria-hidden="true"></div>
+
+        <!-- Enhanced Leaderboard Section -->
+        <section aria-labelledby="leaderboard-title" class="leaderboard-section">
+          <div class="leaderboard-header">
+            <h3 id="leaderboard-title" style="margin:0; font-size:1rem; color:var(--accent);">🏆 Global Leaderboard</h3>
+            <button id="refreshLeaderboard" class="tab-btn" aria-label="Refresh leaderboard">🔄</button>
+          </div>
+
+          <div class="leaderboard-tabs">
+            <button class="tab-btn active" data-tab="global">🌍 Global</button>
+            <button class="tab-btn" data-tab="session">📊 Session</button>
+            <button class="tab-btn" data-tab="friends">👥 Friends</button>
+          </div>
+
+          <ol id="leaderboard" role="list" aria-label="Top player scores"></ol>
+        </section>
+
+        <div style="height:1px;background:rgba(255,255,255,0.03);margin:8px 0;" aria-hidden="true"></div>
+
+        <div class="hint">
+          🎮 <strong>Controls:</strong><br>
+          🔸 <kbd>↑↓←→</kbd> or <kbd>WASD</kbd> to move<br>
+          🔸 Swipe gestures on mobile<br>
+          🔸 <kbd>Space</kbd> to pause/resume<br><br>
+          🍎 <strong>Objective:</strong><br>
+          🔸 Eat apples to grow and score<br>
+          🔸 Avoid walls and your tail<br>
+          🔸 Speed increases as you grow<br>
+          🔸 Compete globally! 🏆
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="small">v3.0 — Multiplayer Ready • Expanded Play Area</div>
+      <div class="small" id="gameStatus" role="status" aria-live="polite">Ready to play!</div>
+    </footer>
+  </div>
+
+  <script>
+  'use strict';
+
+  /* ---- Configuration ---- */
+  const APP_CONFIG = {
+    // Server configuration - Change this to your server URL when deployed
+    SERVER_URL: window.location.hostname === 'localhost' ? null : 'https://your-server-domain.com',
+    ENABLE_MULTIPLAYER: false, // Set to true when server is ready
+
+    // Storage keys
+    STORAGE_KEYS: {
+      USERS: 'snake_users_v3',
+      CURRENT_USER: 'snake_current_user_v3',
+      SESSION_SCORES: 'snake_session_scores_v3',
+      GLOBAL_LEADERBOARD: 'snake_global_leaderboard_v3'
+    }
+  };
+
+  /* ---- Enhanced Utilities ---- */
+  const GameUtils = {
+    debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    },
+
+    hashPassword(str) {
+      if (!str) return '';
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash).toString(16);
+    },
+
+    isValidEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    },
+
+    checkPasswordStrength(password) {
+      const checks = [
+        password.length >= 8,
+        /[A-Z]/.test(password),
+        /[a-z]/.test(password),
+        /\d/.test(password),
+        /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+      ];
+
+      const score = checks.filter(Boolean).length;
+      if (score < 3) return 'weak';
+      if (score < 5) return 'medium';
+      return 'strong';
+    },
+
+    // Enhanced storage with fallback and sync capabilities
+    storage: {
+      get(key, defaultValue = null) {
+        try {
+          const item = localStorage.getItem(key);
+          return item ? JSON.parse(item) : defaultValue;
+        } catch (e) {
+          console.error('Storage get error:', e);
+          return defaultValue;
+        }
+      },
+
+      set(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          // **FIXED**: The line below was manually dispatching a 'storage' event,
+          // which was caught by the app's own listener, creating an infinite loop.
+          // The browser automatically handles dispatching this event to other tabs,
+          // so this manual dispatch is not needed and was causing the error.
+          /*
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: key,
+            newValue: JSON.stringify(value),
+            url: window.location.href
+          }));
+          */
+          return true;
+        } catch (e) {
+          console.error('Storage set error:', e);
+          return false;
+        }
+      },
+
+      remove(key) {
+        try {
+          localStorage.removeItem(key);
+          return true;
+        } catch (e) {
+          console.error('Storage remove error:', e);
+          return false;
+        }
+      }
+    },
+
+    // Generate unique user ID for session tracking
+    generateUserId() {
+      return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    },
+
+    // Cross-device leaderboard synchronization
+    async syncLeaderboard() {
+      if (!APP_CONFIG.ENABLE_MULTIPLAYER || !APP_CONFIG.SERVER_URL) {
+        return this.syncLocalLeaderboard();
+      }
+
+      try {
+        const response = await fetch(`${APP_CONFIG.SERVER_URL}/api/leaderboard`);
+        const globalLeaderboard = await response.json();
+        this.storage.set(APP_CONFIG.STORAGE_KEYS.GLOBAL_LEADERBOARD, globalLeaderboard);
+        return globalLeaderboard;
+      } catch (error) {
+        console.log('Server sync failed, using local data:', error);
+        return this.syncLocalLeaderboard();
+      }
+    },
+
+    syncLocalLeaderboard() {
+      // Create a shared leaderboard using timestamp-based approach
+      const users = this.storage.get(APP_CONFIG.STORAGE_KEYS.USERS, []);
+      const sessionScores = this.storage.get(APP_CONFIG.STORAGE_KEYS.SESSION_SCORES, []);
+
+      // Combine local users with session scores
+      const allScores = [...users.map(u => ({
+        name: u.name,
+        email: u.email,
+        score: u.bestScore,
+        timestamp: u.lastPlayed || Date.now(),
+        type: 'registered'
+      })), ...sessionScores];
+
+      // Sort and deduplicate
+      const leaderboard = allScores
+        .sort((a, b) => b.score - a.score)
+        .filter((user, index, arr) => 
+          arr.findIndex(u => u.email === user.email) === index
+        )
+        .slice(0, 50);
+
+      this.storage.set(APP_CONFIG.STORAGE_KEYS.GLOBAL_LEADERBOARD, leaderboard);
+      return leaderboard;
+    },
+
+    async submitScore(user, score) {
+      // Update local storage first
+      const sessionScores = this.storage.get(APP_CONFIG.STORAGE_KEYS.SESSION_SCORES, []);
+      const userIndex = sessionScores.findIndex(s => s.email === user.email);
+
+      const scoreEntry = {
+        name: user.name,
+        email: user.email,
+        score: score,
+        timestamp: Date.now(),
+        type: 'registered'
+      };
+
+      if (userIndex >= 0) {
+        if (sessionScores[userIndex].score < score) {
+          sessionScores[userIndex] = scoreEntry;
+        }
+      } else {
+        sessionScores.push(scoreEntry);
+      }
+
+      this.storage.set(APP_CONFIG.STORAGE_KEYS.SESSION_SCORES, sessionScores);
+
+      // Try to submit to server if available
+      if (APP_CONFIG.ENABLE_MULTIPLAYER && APP_CONFIG.SERVER_URL) {
+        try {
+          await fetch(`${APP_CONFIG.SERVER_URL}/api/scores`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(scoreEntry)
+          });
+        } catch (error) {
+          console.log('Server submission failed:', error);
+        }
+      }
+
+      return this.syncLeaderboard();
+    }
+  };
+
+  /* ---- DOM Elements ---- */
+  const DOM = {
+    authContainer: document.getElementById('authContainer'),
+    gameContainer: document.getElementById('gameContainer'),
+    loginForm: document.getElementById('loginForm'),
+    signupForm: document.getElementById('signupForm'),
+    showSignup: document.getElementById('showSignup'),
+    showLogin: document.getElementById('showLogin'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    playerNameEl: document.getElementById('playerName'),
+    canvas: document.getElementById('board'),
+    scoreEl: document.getElementById('score'),
+    bestEl: document.getElementById('best'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    fullscreenBtn: document.getElementById('fullscreenBtn'),
+    leaderboardEl: document.getElementById('leaderboard'),
+    gameStatusEl: document.getElementById('gameStatus'),
+    connectionStatus: document.getElementById('connectionStatus'),
+    connectionText: document.getElementById('connectionText'),
+    refreshLeaderboard: document.getElementById('refreshLeaderboard')
+  };
+
+  const ctx = DOM.canvas.getContext('2d');
+
+  /* ---- Game Configuration ---- */
+  const GAME_CONFIG = {
+    tileSize: 18, // Smaller tiles for larger play area
+    baseSpeed: 6, // Slightly slower for better control
+    speedIncrement: 2,
+    maxLeaderboardEntries: 30,
+    // Expanded canvas dimensions
+    minCanvasWidth: 600,
+    maxCanvasWidth: 1000,
+    minCanvasHeight: 400,
+    maxCanvasHeight: 700
+  };
+
+  let gameState = {
+    cols: 0, rows: 0, snake: [], dir: {x: 0, y: 0}, pendingDir: null,
+    apple: null, lastTime: 0, acc: 0, speed: GAME_CONFIG.baseSpeed,
+    running: false, gameOver: false, gameStarted: false, score: 0,
+    animationFrameId: null, currentLeaderboardTab: 'global'
+  };
+
+  let appState = {
+    users: GameUtils.storage.get(APP_CONFIG.STORAGE_KEYS.USERS, []),
+    currentUser: null,
+    isFullscreen: false
+  };
+
+  /* ---- Enhanced View Manager ---- */
+  const ViewManager = {
+    showAuthView() {
+      DOM.authContainer.style.display = 'flex';
+      DOM.gameContainer.style.display = 'none';
+      AuthManager.clearErrors();
+    },
+
+    showGameView() {
+      DOM.authContainer.style.display = 'none';
+      DOM.gameContainer.style.display = 'flex';
+      this.setupCanvas();
+      DOM.playerNameEl.textContent = appState.currentUser.name;
+      DOM.bestEl.textContent = appState.currentUser.bestScore;
+      this.updateConnectionStatus();
+      GameManager.updateLeaderboard();
+      GameManager.resetGame();
+      gameState.animationFrameId = requestAnimationFrame(GameManager.gameLoop);
+    },
+
+    setupCanvas() {
+      try {
+        // Get available space with proper margins
+        const canvasContainer = document.querySelector('.canvas-container');
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const margin = 30; // Container padding
+
+        // Calculate maximum available dimensions
+        let availableWidth, availableHeight;
+
+        if (window.innerWidth > 968) {
+          // Desktop: account for sidebar
+          availableWidth = Math.min(
+            containerRect.width - margin,
+            GAME_CONFIG.maxCanvasWidth
+          );
+        } else {
+          // Mobile: full width minus margins
+          availableWidth = Math.min(
+            window.innerWidth - 40,
+            GAME_CONFIG.maxCanvasWidth
+          );
+        }
+
+        availableHeight = Math.min(
+          window.innerHeight * 0.7,
+          GAME_CONFIG.maxCanvasHeight
+        );
+
+        // Ensure minimum dimensions
+        availableWidth = Math.max(availableWidth, GAME_CONFIG.minCanvasWidth);
+        availableHeight = Math.max(availableHeight, GAME_CONFIG.minCanvasHeight);
+
+        // Snap to tile grid
+        DOM.canvas.width = Math.floor(availableWidth / GAME_CONFIG.tileSize) * GAME_CONFIG.tileSize;
+        DOM.canvas.height = Math.floor(availableHeight / GAME_CONFIG.tileSize) * GAME_CONFIG.tileSize;
+
+        gameState.cols = DOM.canvas.width / GAME_CONFIG.tileSize;
+        gameState.rows = DOM.canvas.height / GAME_CONFIG.tileSize;
+
+        DOM.canvas.setAttribute('aria-label', 
+          `Snake game board, ${gameState.cols} by ${gameState.rows} grid`);
+
+        console.log(`Canvas setup: ${DOM.canvas.width}x${DOM.canvas.height} (${gameState.cols}x${gameState.rows} tiles)`);
+      } catch (error) {
+        console.error('Canvas setup error:', error);
+        // Fallback dimensions
+        DOM.canvas.width = 720;
+        DOM.canvas.height = 480;
+        gameState.cols = 40;
+        gameState.rows = 24;
+      }
+    },
+
+    updateConnectionStatus() {
+      const status = DOM.connectionStatus;
+      const text = DOM.connectionText;
+
+      if (APP_CONFIG.ENABLE_MULTIPLAYER) {
+        status.className = 'connection-status online';
+        text.textContent = 'Multiplayer Mode';
+      } else {
+        status.className = 'connection-status offline';
+        text.textContent = 'Local Mode';
+      }
+    },
+
+    toggleFullscreen() {
+      // **FIXED**: This function now properly handles promise rejections from the Fullscreen API.
+      // This prevents the "Disallowed by permissions policy" error from crashing the script.
+      const handleFullscreenError = (err) => {
+        console.warn(`Fullscreen API Error: ${err.message}. This feature might be blocked by browser permissions.`);
+      };
+
+      if (!document.fullscreenElement) {
+        const requestFS = DOM.canvas.requestFullscreen || DOM.canvas.mozRequestFullScreen || DOM.canvas.webkitRequestFullscreen;
+        if (requestFS) {
+          // Call the function and handle the returned promise
+          Promise.resolve(requestFS.call(DOM.canvas)).catch(handleFullscreenError);
+        }
+      } else {
+        const exitFS = document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen;
+        if (exitFS) {
+          // Call the function and handle the returned promise
+          Promise.resolve(exitFS.call(document)).catch(handleFullscreenError);
+        }
+      }
+    }
+  };
+
+  /* ---- Enhanced Authentication Manager ---- */
+  const AuthManager = {
+    showLoading(formType) {
+      const spinner = document.getElementById(`${formType}Spinner`);
+      const button = document.getElementById(`${formType}Submit`);
+      if (spinner && button) {
+        spinner.style.display = 'block';
+        button.disabled = true;
+      }
+    },
+
+    hideLoading(formType) {
+      const spinner = document.getElementById(`${formType}Spinner`);
+      const button = document.getElementById(`${formType}Submit`);
+      if (spinner && button) {
+        spinner.style.display = 'none';
+        button.disabled = false;
+      }
+    },
+
+    showError(elementId, message) {
+      const errorEl = document.getElementById(elementId);
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+      }
+    },
+
+    clearErrors() {
+      ['loginError', 'signupError', 'loginSuccess', 'signupSuccess'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = '';
+          el.style.display = 'none';
+        }
+      });
+    },
+
+    validateLoginForm(email, password) {
+      if (!email || !password) {
+        this.showError('loginError', 'Please fill in all fields.');
+        return false;
+      }
+      if (!GameUtils.isValidEmail(email)) {
+        this.showError('loginError', 'Please enter a valid email address.');
+        return false;
+      }
+      return true;
+    },
+
+    validateSignupForm(name, email, password, confirmPassword) {
+      if (!name || !email || !password || !confirmPassword) {
+        this.showError('signupError', 'Please fill in all fields.');
+        return false;
+      }
+      if (name.trim().length < 2 || name.trim().length > 20) {
+        this.showError('signupError', 'Player name must be 2-20 characters long.');
+        return false;
+      }
+      if (!GameUtils.isValidEmail(email)) {
+        this.showError('signupError', 'Please enter a valid email address.');
+        return false;
+      }
+      if (password.length < 8) {
+        this.showError('signupError', 'Password must be at least 8 characters long.');
+        return false;
+      }
+      if (password !== confirmPassword) {
+        this.showError('signupError', 'Passwords do not match.');
+        return false;
+      }
+      if (appState.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        this.showError('signupError', 'An account with this email already exists.');
+        return false;
+      }
+      return true;
+    }
+  };
+
+  /* ---- Enhanced Game Manager ---- */
+  const GameManager = {
+    randPos() {
+      return {
+        x: Math.floor(Math.random() * gameState.cols), 
+        y: Math.floor(Math.random() * gameState.rows)
+      };
+    },
+
+    placeApple() {
+      let position;
+      let attempts = 0;
+      const maxAttempts = gameState.cols * gameState.rows;
+
+      do {
+        position = this.randPos();
+        attempts++;
+      } while (
+        attempts < maxAttempts && 
+        gameState.snake.some(segment => segment.x === position.x && segment.y === position.y)
+      );
+
+      gameState.apple = position;
+    },
+
+    resetGame() {
+      gameState.snake = [{x: Math.floor(gameState.cols / 2), y: Math.floor(gameState.rows / 2)}];
+      gameState.dir = {x: 0, y: 0};
+      gameState.pendingDir = null;
+      this.placeApple();
+      gameState.score = 0;
+      gameState.speed = GAME_CONFIG.baseSpeed;
+      this.updateScoreDisplay();
+      gameState.running = false;
+      gameState.gameOver = false;
+      gameState.gameStarted = false;
+      DOM.gameStatusEl.textContent = 'Ready to play! Use arrow keys or WASD to start.';
+      DOM.pauseBtn.textContent = '⏸️ Pause';
+      this.draw();
+    },
+
+    async updateScoreDisplay() {
+      DOM.scoreEl.textContent = gameState.score;
+
+      if (gameState.score > appState.currentUser.bestScore) {
+        appState.currentUser.bestScore = gameState.score;
+        appState.currentUser.lastPlayed = Date.now();
+        DOM.bestEl.textContent = appState.currentUser.bestScore;
+
+        const userIndex = appState.users.findIndex(u => u.email === appState.currentUser.email);
+        if (userIndex !== -1) {
+          appState.users[userIndex] = {...appState.currentUser};
+          GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.USERS, appState.users);
+          GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.CURRENT_USER, appState.currentUser);
+        }
+
+        // Submit score and update leaderboard
+        await GameUtils.submitScore(appState.currentUser, gameState.score);
+        this.updateLeaderboard();
+      }
+    },
+
+    async updateLeaderboard() {
+      try {
+        const leaderboard = await GameUtils.syncLeaderboard();
+        this.renderLeaderboard(leaderboard);
+      } catch (error) {
+        console.error('Leaderboard update failed:', error);
+      }
+    },
+
+    renderLeaderboard(leaderboard = []) {
+      DOM.leaderboardEl.innerHTML = '';
+
+      if (leaderboard.length === 0) {
+        const li = document.createElement('li');
+        li.innerHTML = '<span style="color: var(--muted); text-align: center; width: 100%;">🎯 No scores yet. Be the first to play!</span>';
+        DOM.leaderboardEl.appendChild(li);
+        return;
+      }
+
+      leaderboard.slice(0, GAME_CONFIG.maxLeaderboardEntries).forEach((user, index) => {
+        const li = document.createElement('li');
+        const isCurrentUser = appState.currentUser && user.email === appState.currentUser.email;
+
+        if (isCurrentUser) {
+          li.className = 'current-user';
+          li.setAttribute('aria-label', `Your rank: ${index + 1}`);
+        }
+
+        const rankClass = index < 3 ? 'rank top3' : 'rank';
+        const trophies = ['🥇', '🥈', '🥉'];
+        const trophy = index < 3 ? trophies[index] : '';
+
+        li.innerHTML = `
+          <span class="${rankClass}">${trophy}${index + 1}.</span>
+          <span class="name" title="${user.name}">${user.name}</span>
+          <span class="score">${user.score}</span>
+        `;
+        DOM.leaderboardEl.appendChild(li);
+      });
+    },
+
+    step() {
+      if (gameState.pendingDir) { 
+        gameState.dir = gameState.pendingDir; 
+        gameState.pendingDir = null; 
+      }
+
+      if (gameState.dir.x === 0 && gameState.dir.y === 0) return;
+
+      const head = {
+        x: gameState.snake[0].x + gameState.dir.x, 
+        y: gameState.snake[0].y + gameState.dir.y
+      };
+
+      if (head.x < 0 || head.x >= gameState.cols || head.y < 0 || head.y >= gameState.rows) {
+        return this.endGame();
+      }
+
+      if (gameState.snake.slice(0, -1).some(segment => segment.x === head.x && segment.y === head.y)) {
+        return this.endGame();
+      }
+
+      gameState.snake.unshift(head);
+
+      if (gameState.apple && head.x === gameState.apple.x && head.y === gameState.apple.y) {
+        gameState.score += 1;
+        gameState.speed = GAME_CONFIG.baseSpeed + Math.floor(gameState.score / GAME_CONFIG.speedIncrement);
+        this.updateScoreDisplay();
+        this.placeApple();
+        DOM.gameStatusEl.textContent = `🎯 Score: ${gameState.score} | 🚀 Speed: ${gameState.speed}`;
+      } else {
+        gameState.snake.pop();
+      }
+    },
+
+    endGame() {
+      gameState.running = false;
+      gameState.gameOver = true;
+      DOM.gameStatusEl.textContent = `🏁 Game Over! Final Score: ${gameState.score}. Restarting...`;
+
+      // **FIXED**: Replaced confirm() which can be blocking and doesn't work in all environments.
+      // Automatically reset the game after a short delay.
+      setTimeout(() => {
+        this.resetGame();
+      }, 2500);
+    },
+
+    draw() {
+      ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+
+      // Enhanced grid pattern
+      ctx.save();
+      ctx.globalAlpha = 0.02;
+      for (let x = 0; x < gameState.cols; x++) {
+        for (let y = 0; y < gameState.rows; y++) {
+          ctx.fillStyle = (x + y) % 2 ? '#01232c' : '#001f28';
+          ctx.fillRect(x * GAME_CONFIG.tileSize, y * GAME_CONFIG.tileSize, GAME_CONFIG.tileSize, GAME_CONFIG.tileSize);
+        }
+      }
+      ctx.restore();
+
+      // Enhanced apple with pulsing glow
+      if (gameState.apple) {
+        ctx.save();
+        const pulseIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
+        ctx.shadowColor = '#ff5c5c';
+        ctx.shadowBlur = 8 + pulseIntensity * 4;
+        ctx.fillStyle = '#ff5c5c';
+        ctx.fillRect(
+          gameState.apple.x * GAME_CONFIG.tileSize, 
+          gameState.apple.y * GAME_CONFIG.tileSize, 
+          GAME_CONFIG.tileSize, 
+          GAME_CONFIG.tileSize
+        );
+        ctx.restore();
+      }
+
+      // Enhanced snake with better gradients
+      gameState.snake.forEach((segment, index) => {
+        const isHead = index === 0;
+        ctx.save();
+
+        if (isHead) {
+          ctx.shadowColor = 'hsl(190 90% 60%)';
+          ctx.shadowBlur = 6;
+          ctx.fillStyle = 'hsl(190 90% 60%)';
+        } else {
+          const alpha = Math.max(0.4, 1 - (index / gameState.snake.length) * 0.6);
+          ctx.fillStyle = `hsla(190, 80%, 40%, ${alpha})`;
+        }
+
+        ctx.fillRect(
+          segment.x * GAME_CONFIG.tileSize, 
+          segment.y * GAME_CONFIG.tileSize, 
+          GAME_CONFIG.tileSize, 
+          GAME_CONFIG.tileSize
+        );
+        ctx.restore();
+      });
+
+      // Enhanced start message
+      if (!gameState.running && !gameState.gameOver && !gameState.gameStarted) {
+        ctx.save();
+        const centerX = DOM.canvas.width / 2;
+        const centerY = DOM.canvas.height / 2;
+
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(centerX - 200, centerY - 40, 400, 80);
+
+        // Main text
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.font = 'bold 20px system-ui, Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillText('🎮 Ready to Play Snake Royale?', centerX, centerY - 15);
+
+        ctx.font = '14px system-ui, Segoe UI';
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.9)';
+        ctx.fillText('Press Arrow Keys, WASD, or Swipe to Start!', centerX, centerY + 10);
+        ctx.restore();
+      }
+    },
+
+    gameLoop(timestamp) {
+      gameState.animationFrameId = requestAnimationFrame(GameManager.gameLoop);
+
+      if (!gameState.lastTime) gameState.lastTime = timestamp;
+      const deltaTime = (timestamp - gameState.lastTime) / 1000;
+      gameState.lastTime = timestamp;
+
+      if (gameState.running && !gameState.gameOver) {
+        gameState.acc += deltaTime;
+        const interval = 1 / gameState.speed;
+
+        if (gameState.acc >= interval) {
+          const steps = Math.floor(gameState.acc / interval);
+          gameState.acc -= steps * interval;
+
+          for (let i = 0; i < steps && gameState.running; i++) {
+            GameManager.step();
+          }
+        }
+      }
+
+      GameManager.draw();
+    },
+
+    startGame() {
+      if (gameState.gameOver) this.resetGame();
+      if (gameState.gameStarted) return;
+
+      gameState.gameStarted = true;
+      gameState.running = true;
+      gameState.dir = {x: 1, y: 0};
+      gameState.lastTime = 0;
+      gameState.acc = 0;
+      DOM.gameStatusEl.textContent = '🎮 Game in progress... Good luck!';
+    },
+
+    toggleRunning() {
+      if (gameState.gameOver || !gameState.gameStarted) return;
+
+      gameState.running = !gameState.running;
+      DOM.pauseBtn.textContent = gameState.running ? '⏸️ Pause' : '▶️ Resume';
+      DOM.gameStatusEl.textContent = gameState.running ? '🎮 Game running...' : '⏸️ Game paused';
+
+      if (gameState.running) gameState.lastTime = 0;
+    },
+
+    tryChangeDir(newDir) {
+      if (gameState.snake.length === 1) {
+        gameState.pendingDir = newDir;
+        return;
+      }
+
+      if (gameState.dir.x !== 0 || gameState.dir.y !== 0) {
+        if (newDir.x === -gameState.dir.x && newDir.y === -gameState.dir.y) return;
+      }
+
+      gameState.pendingDir = newDir;
+    }
+  };
+
+  /* ---- Event Handlers ---- */
+
+  // Enhanced password strength indicator
+  document.getElementById('signupPassword').addEventListener('input', function(e) {
+    const password = e.target.value;
+    const strengthEl = document.getElementById('passwordStrength');
+    const strength = GameUtils.checkPasswordStrength(password);
+
+    strengthEl.className = `password-strength${password.length > 0 ? ` strength-${strength}` : ''}`;
+  });
+
+  // Form switching
+  DOM.showSignup.addEventListener('click', () => {
+    DOM.loginForm.style.display = 'none';
+    DOM.signupForm.style.display = 'flex';
+    AuthManager.clearErrors();
+    document.getElementById('signupName').focus();
+  });
+
+  DOM.showLogin.addEventListener('click', () => {
+    DOM.signupForm.style.display = 'none';
+    DOM.loginForm.style.display = 'flex';
+    AuthManager.clearErrors();
+    document.getElementById('loginEmail').focus();
+  });
+
+  // Enhanced form submissions
+  DOM.loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    AuthManager.clearErrors();
+    AuthManager.showLoading('login');
+
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    if (!AuthManager.validateLoginForm(email, password)) {
+      AuthManager.hideLoading('login');
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const hashedPassword = GameUtils.hashPassword(password);
+    const user = appState.users.find(u => 
+      u.email.toLowerCase() === email.toLowerCase() && u.password === hashedPassword
+    );
+
+    AuthManager.hideLoading('login');
+
+    if (user) {
+      appState.currentUser = user;
+      GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.CURRENT_USER, appState.currentUser);
+      ViewManager.showGameView();
+    } else {
+      AuthManager.showError('loginError', '❌ Invalid email or password. Please try again.');
+    }
+  });
+
+  DOM.signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    AuthManager.clearErrors();
+    AuthManager.showLoading('signup');
+
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirm').value;
+
+    if (!AuthManager.validateSignupForm(name, email, password, confirmPassword)) {
+      AuthManager.hideLoading('signup');
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const hashedPassword = GameUtils.hashPassword(password);
+    const newUser = { 
+      id: GameUtils.generateUserId(),
+      name, 
+      email: email.toLowerCase(), 
+      password: hashedPassword, 
+      bestScore: 0,
+      createdAt: Date.now(),
+      lastPlayed: Date.now()
+    };
+
+    appState.users.push(newUser);
+    GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.USERS, appState.users);
+
+    appState.currentUser = newUser;
+    GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.CURRENT_USER, appState.currentUser);
+
+    AuthManager.hideLoading('signup');
+    ViewManager.showGameView();
+  });
+
+  DOM.logoutBtn.addEventListener('click', () => {
+    if (confirm('🚪 Are you sure you want to logout?\n\nYour progress will be saved!')) {
+      if (gameState.animationFrameId) {
+        cancelAnimationFrame(gameState.animationFrameId);
+      }
+      GameUtils.storage.remove(APP_CONFIG.STORAGE_KEYS.CURRENT_USER);
+      appState.currentUser = null;
+      location.reload();
+    }
+  });
+
+  // Game controls
+  DOM.pauseBtn.addEventListener('click', () => GameManager.toggleRunning());
+
+  DOM.resetBtn.addEventListener('click', () => {
+    const shouldReset = !gameState.running && !gameState.gameStarted ? true :
+      confirm('🔄 Reset current game?\n\nYour current score will be lost!');
+
+    if (shouldReset) {
+      GameManager.resetGame();
+    }
+  });
+
+  DOM.fullscreenBtn.addEventListener('click', () => ViewManager.toggleFullscreen());
+
+  DOM.refreshLeaderboard.addEventListener('click', async () => {
+    DOM.refreshLeaderboard.disabled = true;
+    DOM.refreshLeaderboard.textContent = '⏳';
+
+    await GameManager.updateLeaderboard();
+
+    setTimeout(() => {
+      DOM.refreshLeaderboard.disabled = false;
+      DOM.refreshLeaderboard.textContent = '�';
+    }, 1000);
+  });
+
+  // Leaderboard tabs
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      gameState.currentLeaderboardTab = btn.dataset.tab;
+      GameManager.updateLeaderboard();
+    });
+  });
+
+  // Enhanced keyboard controls
+  window.addEventListener('keydown', (e) => {
+    if (DOM.gameContainer.style.display === 'none') return;
+    if (gameState.gameOver) return;
+
+    const key = e.key.toLowerCase();
+    const gameKeys = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'];
+
+    if (gameKeys.includes(key)) {
+      e.preventDefault();
+
+      if (!gameState.gameStarted) {
+        GameManager.startGame();
+      }
+
+      const directionMap = {
+        arrowup: {x: 0, y: -1}, arrowdown: {x: 0, y: 1},
+        arrowleft: {x: -1, y: 0}, arrowright: {x: 1, y: 0},
+        w: {x: 0, y: -1}, s: {x: 0, y: 1}, 
+        a: {x: -1, y: 0}, d: {x: 1, y: 0}
+      };
+
+      GameManager.tryChangeDir(directionMap[key]);
+    }
+
+    if (key === ' ') {
+      e.preventDefault();
+      GameManager.toggleRunning();
+    }
+
+    if (key === 'f' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      ViewManager.toggleFullscreen();
+    }
+  });
+
+  // Enhanced touch controls
+  (function setupTouchControls() {
+    let touchStart = {x: 0, y: 0};
+    let touchTime = 0;
+    const minSwipeDistance = 30;
+    const maxTapTime = 300;
+
+    DOM.canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (gameState.gameOver) return;
+
+      const touch = e.touches[0];
+      touchStart.x = touch.clientX;
+      touchStart.y = touch.clientY;
+      touchTime = Date.now();
+
+      if (!gameState.gameStarted) {
+        GameManager.startGame();
+      }
+    }, {passive: false});
+
+    DOM.canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (gameState.gameOver) return;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStart.x;
+      const deltaY = touch.clientY - touchStart.y;
+      const distance = Math.hypot(deltaX, deltaY);
+      const timeDelta = Date.now() - touchTime;
+
+      if (distance < minSwipeDistance && timeDelta < maxTapTime) {
+        GameManager.toggleRunning();
+        return;
+      }
+
+      if (distance >= minSwipeDistance) {
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          GameManager.tryChangeDir(deltaX > 0 ? {x: 1, y: 0} : {x: -1, y: 0});
+        } else {
+          GameManager.tryChangeDir(deltaY > 0 ? {x: 0, y: 1} : {x: 0, y: -1});
+        }
+      }
+    }, {passive: false});
+  })();
+
+  // Fullscreen change detection
+  document.addEventListener('fullscreenchange', () => {
+    appState.isFullscreen = !!document.fullscreenElement;
+    DOM.fullscreenBtn.textContent = appState.isFullscreen ? '🪟 Exit' : '📺 Expand';
+  });
+
+  // Enhanced resize handler
+  window.addEventListener('resize', GameUtils.debounce(() => {
+    if (DOM.gameContainer.style.display !== 'none') {
+      if (gameState.animationFrameId) {
+        cancelAnimationFrame(gameState.animationFrameId);
+      }
+      ViewManager.setupCanvas();
+      GameManager.resetGame();
+      gameState.animationFrameId = requestAnimationFrame(GameManager.gameLoop);
+    }
+  }, 250));
+
+  // Cross-tab synchronization
+  window.addEventListener('storage', (e) => {
+    if (e.key === APP_CONFIG.STORAGE_KEYS.GLOBAL_LEADERBOARD) {
+      GameManager.updateLeaderboard();
+    }
+  });
+
+  // Auto-pause when tab becomes hidden
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && gameState.running && gameState.gameStarted) {
+      GameManager.toggleRunning();
+    }
+  });
+
+  // Initialize application
+  (function initializeApp() {
+    try {
+      // Migrate old data if exists
+      const oldUsers = GameUtils.storage.get('snake_users', []);
+      if (oldUsers.length > 0 && !GameUtils.storage.get(APP_CONFIG.STORAGE_KEYS.USERS)) {
+        GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.USERS, oldUsers);
+      }
+
+      const savedUser = GameUtils.storage.get(APP_CONFIG.STORAGE_KEYS.CURRENT_USER);
+      if (savedUser) {
+        const userInList = appState.users.find(u => u.email === savedUser.email);
+        appState.currentUser = userInList || savedUser;
+
+        if (userInList) {
+          GameUtils.storage.set(APP_CONFIG.STORAGE_KEYS.CURRENT_USER, appState.currentUser);
+        }
+
+        ViewManager.showGameView();
+      } else {
+        ViewManager.showAuthView();
+      }
+    } catch (error) {
+      console.error('App initialization error:', error);
+      ViewManager.showAuthView();
+    }
+  })();
+
+  </script>
+</body>
+</html>
