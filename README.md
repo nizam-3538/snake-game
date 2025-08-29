@@ -9,7 +9,7 @@ score counter and real time top score leader board.
 simple and responsive design.
 
 # contributing
-want to improve this game?
-Fork the repository,
-Create your feature branch,
+want to improve this game?<br>
+Fork the repository,<br>
+Create your feature branch,<br>
 Submit a pull request.
