@@ -1,15 +1,15 @@
 # snake-game
-A classic Snake Game built with HTML, CSS and JavaScript.
-Play directly in  your browser - means no! installation required.
+A classic Snake Game built with HTML, CSS and JavaScript.<br>
+Play directly in  your browser - means no! installation required.<br>
 
 # features
-smooth snake movement with arrow keys or WSAD keys and also mobile touch controls.
-food spannin and growing snake length.
-score counter and real time top score leader board.
+smooth snake movement with arrow keys or WSAD keys and also mobile touch controls.<br>
+food spannin and growing snake length.<br>
+score counter and real time top score leader board.<br>
 simple and responsive design.
 
 # contributing
-want to improve this game?
-Fork the repository,
-Create your feature branch,
+want to improve this game?<br>
+Fork the repository,<br>
+Create your feature branch,<br>
 Submit a pull request.
